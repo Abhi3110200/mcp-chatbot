@@ -5,51 +5,69 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 import re
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
-load_dotenv()
-
 import asyncio
 from groq import BadRequestError
 
+load_dotenv()
 
 async def main():
-
     BASE_PATH = Path(__file__).parent
     
-    MATH_SERVER=str(BASE_PATH / "servers" / "math.py")
+    # Set up server configurations
+    MATH_SERVER = str(BASE_PATH / "servers" / "math.py")
+    SEARCH_SERVER = str(BASE_PATH / "servers" / "search.py")
 
-    os.environ["GROQ_API_KEY"]=os.getenv("GROQ_API_KEY")
+    # Set up environment variables
+    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY", "")
     os.environ["MCP_VERBOSE"] = "1"
 
-    client=MultiServerMCPClient(
+    # Initialize MCP client with both math and search servers
+    client = MultiServerMCPClient(
         {
             "math": {
                 "command": "python",
-                "args": [MATH_SERVER],  # Ensure correct absolute path
+                "args": [MATH_SERVER],
                 "transport": "stdio",
-            },
-            "weather": {
-                "url": "http://127.0.0.1:8000/mcp",
-                "transport": "streamable_http",
             },
             "search": {
                 "command": "python",
-                "args": [str(BASE_PATH / "servers" / "search.py")],
+                "args": [SEARCH_SERVER],
                 "transport": "stdio",
             }
         }
     )
 
-    tools = await client.get_tools()
-    print("Loaded tools:", [t.name for t in tools])
-    tool_names = ", ".join([t.name for t in tools])
+    # Initialize the language model
     model = ChatGroq(model="llama-3.3-70b-versatile")
-    model_plain = ChatGroq(model="llama-3.3-70b-versatile")
-    agent = create_react_agent(
-        model,
-        tools,
-    )
-
     
+    # Get available tools
+    tools = await client.get_tools()
+    print("Available tools:", [t.name for t in tools])
+    
+    # Create the agent
+    agent = create_react_agent(model, tools)
+    
+    # Main interaction loop
+    print("MCP Chatbot initialized. Type 'exit' to quit.")
+    while True:
+        try:
+            user_input = input("\nYou: ").strip()
+            if user_input.lower() in ('exit', 'quit'):
+                print("Goodbye!")
+                break
+                
+            # Process the input
+            response = await agent.ainvoke({"messages": [HumanMessage(content=user_input)]})
+            print(f"\nAssistant: {response['messages'][-1].content}")
+            
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            break
+        except BadRequestError as e:
+            print(f"\nError: {str(e)}")
+        except Exception as e:
+            print(f"\nAn error occurred: {str(e)}")
 
+if __name__ == "__main__":
+    asyncio.run(main())
