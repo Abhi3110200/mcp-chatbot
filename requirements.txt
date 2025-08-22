@@ -1,8 +1,15 @@
 langchain-groq==0.3.7
 langchain-mcp-adapters==0.1.9
 mcp==1.12.4
-langgraph==0.6.4
-python-dotenv==1.1.1
+langchain>=0.1.0
+fastapi>=0.68.0
+uvicorn>=0.15.0
+groq>=0.4.0
+python-dotenv>=0.19.0
+pydantic>=1.8.0
+python-multipart>=0.0.5
+aiohttp>=3.8.0
 ddgs==9.5.2
 markitdown==0.1.2
 duckduckgo-search==8.1.1
+pydantic
