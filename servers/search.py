@@ -1,56 +1,49 @@
-from mcp.server import Server
-from mcp.interface import tool
-from typing import List, Optional
+from typing import List, Dict, Any
 from duckduckgo_search import DDGS
+from mcp.server.fastmcp.server import MCPServer
+from mcp.server.fastmcp.tools import Tool
 
-class SearchServer(Server):
-    def __init__(self):
-        super().__init__()
-        self.ddgs = DDGS()
+# Create the server
+app = MCPServer(name="search")
 
-    @tool
-    def search_web(self, query: str, max_results: int = 5) -> List[dict]:
-        """Search the web for information.
-        
-        Args:
-            query: The search query
-            max_results: Maximum number of results to return (default: 5)
-            
-        Returns:
-            A list of search results with title, link, and snippet
-        """
-        try:
-            results = self.ddgs.text(query, max_results=max_results)
-            return [{
-                "title": r.get("title", ""),
-                "link": r.get("href", ""),
-                "snippet": r.get("body", "")
-            } for r in results]
-        except Exception as e:
-            return [{"error": f"Search failed: {str(e)}"}]
+# Define the tools
+@Tool(name="web_search")
+async def search_web(query: str, max_results: int = 3) -> List[Dict[str, Any]]:
+    """Search the web for information."""
+    try:
+        with DDGS() as ddgs:
+            results = []
+            for result in ddgs.text(query, max_results=max_results):
+                results.append({
+                    "title": result.get("title", ""),
+                    "url": result.get("href", ""),
+                    "snippet": result.get("body", "")
+                })
+            return results
+    except Exception as e:
+        return [{"error": f"Search failed: {str(e)}"}]
 
-    @tool
-    def search_news(self, query: str, max_results: int = 5) -> List[dict]:
-        """Search for news articles.
-        
-        Args:
-            query: The search query
-            max_results: Maximum number of results to return (default: 5)
-            
-        Returns:
-            A list of news articles with title, link, and snippet
-        """
-        try:
-            results = self.ddgs.news(query, max_results=max_results)
-            return [{
-                "title": r.get("title", ""),
-                "link": r.get("url", ""),
-                "snippet": r.get("excerpt", ""),
-                "date": r.get("date", "")
-            } for r in results]
-        except Exception as e:
-            return [{"error": f"News search failed: {str(e)}"}]
+@Tool(name="search_news")
+async def search_news(query: str, max_results: int = 3) -> List[Dict[str, Any]]:
+    """Search for news articles."""
+    try:
+        with DDGS() as ddgs:
+            results = []
+            for result in ddgs.news(query, max_results=max_results):
+                results.append({
+                    "title": result.get("title", ""),
+                    "url": result.get("url", ""),
+                    "snippet": result.get("body", ""),
+                    "date": result.get("date", ""),
+                    "source": result.get("source", "")
+                })
+            return results
+    except Exception as e:
+        return [{"error": f"News search failed: {str(e)}"}]
+
+# Register the tools
+app.register_tool(search_web)
+app.register_tool(search_news)
 
 if __name__ == "__main__":
-    server = SearchServer()
-    server.run()
+    app.run(transport="stdio")

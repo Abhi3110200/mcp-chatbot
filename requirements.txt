@@ -5,3 +5,4 @@ langgraph==0.6.4
 python-dotenv==1.1.1
 ddgs==9.5.2
 markitdown==0.1.2
+duckduckgo-search==8.1.1
